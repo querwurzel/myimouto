@@ -5,7 +5,7 @@ class CommentController extends ApplicationController
     {
         $this->helper('Avatar', 'Post');
     }
-    
+
     protected function filters()
     {
         return array(
@@ -52,12 +52,12 @@ class CommentController extends ApplicationController
         }
 
         $user_id = current_user()->id;
-        
+
         $comment = new Comment(array_merge($this->params()->comment, array('ip_addr' => $this->request()->remoteIp(), 'user_id' => $user_id)));
         if ($this->params()->commit == "Post without bumping") {
             $comment->do_not_bump_post = true;
         }
-        
+
         if ($comment->save()) {
             $this->respond_to_success("Comment created", '#index');
         } else {
@@ -75,7 +75,7 @@ class CommentController extends ApplicationController
     public function index()
     {
         $this->set_title('Comments');
-        
+
         if ($this->request()->format() == "json" || $this->request()->format() == "xml") {
             $this->comments = Comment::generate_sql($this->params()->all())->order("id DESC")->paginate($this->page_number(), 25);
             $this->respond_to_list("comments");
@@ -99,30 +99,30 @@ class CommentController extends ApplicationController
         $query        = Comment::order('id desc');
         $search_query = explode(' ', $this->params()->query);
         $search_terms = array();
-        
+        $user_search  = false;
+
         foreach ($search_query as $s) {
             if (!$s) {
                 continue;
             }
-            
-            if (strpos($s, 'user:') === 0 && strlen($s) > 5) {
+
+            if (!$user_search && strpos($s, 'user:') === 0 && strlen($s) > 5) {
                 list($search_type, $param) = explode(':', $s);
-                
+
                 if ($user = User::where(['name' => $param])->first()) {
                     $query->where('user_id = ?', $user->id);
-                } else {
-                    $query->where('false');
+                    $user_search = true;
                 }
+
                 continue;
             }
 
             $search_terms[] = $s;
         }
-        
+
         if ($search_terms) {
             $query->where('body LIKE ?', '%' . implode('%', $search_terms) . '%');
-        } else {
-            # MI: this query makes no sense, it will return nothing.
+        } elseif (!$user_search) {
             $query->where('false');
         }
 
